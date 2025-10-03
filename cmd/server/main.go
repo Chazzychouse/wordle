@@ -28,25 +28,29 @@ func VarsHandler(w http.ResponseWriter, r *http.Request) {
 
 func TokenHandler(w http.ResponseWriter, r *http.Request) {
 	task := r.URL.Query().Get("task")
-	tmpl := template.Must(template.ParseFiles("layout.html"))
+	tmpl := template.Must(template.ParseFiles("web/templates/layout.html"))
+
+	if task == "" {
+		task = "Do thing"
+	}
+
 	data := TodoPageData{
 		PageTitle: "My TODO list",
 		Todos: []Todo{
-			{Title: task + "1", Done: false},
-			{Title: task + "2", Done: true},
-			{Title: task + "3", Done: true},
+			{Title: task + " 1", Done: false},
+			{Title: task + " 2", Done: true},
+			{Title: task + " 3", Done: true},
 		},
 	}
+
 	tmpl.Execute(w, data)
 }
 
 func main() {
 	r := mux.NewRouter()
-	fs := http.FileServer(http.Dir("static/"))
 
-	r.Handle("/static/", http.StripPrefix("/static/", fs))
-	r.HandleFunc("/{thing}/{id}", VarsHandler)
 	r.HandleFunc("/", TokenHandler).Host("localhost")
+	r.HandleFunc("/give/{thing}/{id}", VarsHandler)
 
 	http.ListenAndServe(":80", r)
 }

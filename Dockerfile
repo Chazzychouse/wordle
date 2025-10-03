@@ -2,9 +2,9 @@ FROM golang:1.25
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY src/server/go.mod src/server/go.sum ./
 RUN go mod download
-COPY . .
+COPY src/server/ .
 
 RUN go build -o main .
 
