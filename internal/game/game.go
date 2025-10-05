@@ -2,30 +2,38 @@ package game
 
 import (
 	"errors"
+	"time"
 )
 
 type Game struct {
-	ID         string    `json:id`
-	Attempts   []Attempt `json:attempts`
-	Username   string    `json:username`
-	IsGameOver bool      `json:isGameOver`
-	Solution   string    `json:solution`
+	ID         string    `json:"id" gorm:"primaryKey"`
+	Attempts   []Attempt `json:"attempts" gorm:"serializer:json"`
+	Username   string    `json:"username"`
+	IsGameOver bool      `json:"isGameOver"`
+	Solution   string    `json:"solution"`
+	CreatedAt  time.Time `json:"createdAt" gorm:"autoCreateTime"`
+	UpdatedAt  time.Time `json:"updatedAt" gorm:"autoUpdateTime"`
+}
+
+type GameRequest struct {
+	Username string `json:"username"`
 }
 
 type Attempt struct {
-	Number uint16 `json:number`
-	Value  string `json:value`
+	Number int    `json:"number"`
+	Value  string `json:"value"`
 }
 
 type AttemptRequest struct {
-	GameID   string `json:gameId`
-	Username string `json:username`
-	Value    string `json:value`
+	GameID   string `json:"gameId"`
+	Username string `json:"username"`
+	Value    string `json:"value"`
 }
 
+// TODO: Return list of previous attempts
 type AttemptResponse struct {
-	Result     []Correctness `json:result`
-	IsGameOver bool          `json:isGameOver`
+	Result     []Correctness `json:"result"`
+	IsGameOver bool          `json:"isGameOver"`
 }
 
 const MAX_ATTEMPTS int = 6
@@ -47,22 +55,32 @@ var ErrInvalidAttemptValue = errors.New("ATTEMPT MUST BE EXACTLY 5 LETTERS")
 var ErrInvalidUser = errors.New("INVALID USER")
 var ErrDuplicateAttempts = errors.New("DUPLICATE ATTEMPT")
 
-func ValidateGame(req AttemptRequest, game *Game) (bool, error) {
+func ValidateAttempt(req AttemptRequest, game *Game) (AttemptResponse, error) {
 	if req.GameID != game.ID {
-		return false, ErrInvalidGameID
+		return AttemptResponse{}, ErrInvalidGameID
 	}
 	if req.Username != game.Username {
-		return false, ErrInvalidUser
+		return AttemptResponse{}, ErrInvalidUser
 	}
 	if len(game.Attempts) >= MAX_ATTEMPTS || game.IsGameOver {
-		return false, ErrTooManyAttempts
+		return AttemptResponse{}, ErrTooManyAttempts
+	}
+	if len(req.Value) != LEN_VALID_ATTEMPT {
+		return AttemptResponse{}, ErrInvalidAttemptValue
 	}
 	for _, att := range game.Attempts {
 		if att.Value == req.Value {
-			return false, ErrDuplicateAttempts
+			return AttemptResponse{}, ErrDuplicateAttempts
 		}
 	}
-	return true, nil
+	result, err := CalculateCorrectness(req.Value, game.Solution)
+	if err != nil {
+		return AttemptResponse{}, err
+	}
+	return AttemptResponse{
+		Result:     result,
+		IsGameOver: isGameOver(result, game.Attempts),
+	}, nil
 }
 
 func forEachPosition(fn func(i int)) {
@@ -105,4 +123,20 @@ func CalculateCorrectness(guess string, sol string) ([]Correctness, error) {
 	})
 
 	return result, nil
+}
+
+func isGameOver(result []Correctness, attempts []Attempt) bool {
+	return len(attempts)+1 >= MAX_ATTEMPTS || isCorrectGuess(result)
+}
+
+func isCorrectGuess(result []Correctness) bool {
+	if len(result) != LEN_VALID_ATTEMPT {
+		return false
+	}
+	for _, correctness := range result {
+		if correctness != Correct {
+			return false
+		}
+	}
+	return true
 }
