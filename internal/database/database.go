@@ -17,7 +17,7 @@ func NewDatabase() *Database {
 		panic("failed to connect database: " + err.Error())
 	}
 
-	err = db.AutoMigrate(&game.Game{})
+	err = db.AutoMigrate(&game.Game{}, &game.Solution{})
 	if err != nil {
 		panic("failed to migrate database: " + err.Error())
 	}
@@ -27,6 +27,23 @@ func NewDatabase() *Database {
 
 func (d *Database) CreateGame(game *game.Game) error {
 	return d.db.Create(game).Error
+}
+
+func (d *Database) CreateSolution(solution *game.Solution) error {
+	return d.db.Create(solution).Error
+}
+
+func (d *Database) UpdateSolution(solution *game.Solution) error {
+	return d.db.Save(solution).Error
+}
+
+func (d *Database) GetSolution(id string) (*game.Solution, error) {
+	var solution game.Solution
+	err := d.db.Where("id = ?", id).First(&solution).Error
+	if err != nil {
+		return nil, err
+	}
+	return &solution, nil
 }
 
 func (d *Database) GetGame(id string) (*game.Game, error) {

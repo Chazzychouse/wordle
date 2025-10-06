@@ -10,9 +10,13 @@ type Game struct {
 	Attempts   []Attempt `json:"attempts" gorm:"serializer:json"`
 	Username   string    `json:"username"`
 	IsGameOver bool      `json:"isGameOver"`
-	Solution   string    `json:"solution"`
 	CreatedAt  time.Time `json:"createdAt" gorm:"autoCreateTime"`
 	UpdatedAt  time.Time `json:"updatedAt" gorm:"autoUpdateTime"`
+}
+
+type Solution struct {
+	GameID string `json:"gameId"`
+	Value  string `json:"value"`
 }
 
 type GameRequest struct {
@@ -30,9 +34,9 @@ type AttemptRequest struct {
 	Value    string `json:"value"`
 }
 
-// TODO: Return list of previous attempts
 type AttemptResponse struct {
 	Result     []Correctness `json:"result"`
+	Attempts   []Attempt     `json:"attempts"`
 	IsGameOver bool          `json:"isGameOver"`
 }
 
@@ -55,7 +59,7 @@ var ErrInvalidAttemptValue = errors.New("ATTEMPT MUST BE EXACTLY 5 LETTERS")
 var ErrInvalidUser = errors.New("INVALID USER")
 var ErrDuplicateAttempts = errors.New("DUPLICATE ATTEMPT")
 
-func ValidateAttempt(req AttemptRequest, game *Game) (AttemptResponse, error) {
+func ValidateAttempt(req AttemptRequest, game *Game, sol *Solution) (AttemptResponse, error) {
 	if req.GameID != game.ID {
 		return AttemptResponse{}, ErrInvalidGameID
 	}
@@ -73,11 +77,12 @@ func ValidateAttempt(req AttemptRequest, game *Game) (AttemptResponse, error) {
 			return AttemptResponse{}, ErrDuplicateAttempts
 		}
 	}
-	result, err := CalculateCorrectness(req.Value, game.Solution)
+	result, err := CalculateCorrectness(req.Value, sol.Value)
 	if err != nil {
 		return AttemptResponse{}, err
 	}
 	return AttemptResponse{
+		Attempts:   game.Attempts,
 		Result:     result,
 		IsGameOver: isGameOver(result, game.Attempts),
 	}, nil

@@ -15,25 +15,29 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// AuthMiddleware validates JWT tokens and adds user info to request context
+type contextKey string
+
+const (
+	userIDKey    contextKey = "user_id"
+	userEmailKey contextKey = "user_email"
+	userNameKey  contextKey = "user_name"
+)
+
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get token from Authorization header
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			http.Error(w, "Authorization header required", http.StatusUnauthorized)
 			return
 		}
 
-		// Remove "Bearer " prefix
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
 			http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
 			return
 		}
 
-		// Parse and validate token
-		token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
 			return []byte(getJWTSecret()), nil
 		})
 
@@ -48,54 +52,48 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Add user info to request context
 		ctx := r.Context()
 		ctx = contextWithUserID(ctx, claims.UserID)
 		ctx = contextWithUserEmail(ctx, claims.Email)
 		ctx = contextWithUserName(ctx, claims.Name)
 
-		// Continue with the next handler
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-// Helper functions to add user info to context
 func contextWithUserID(ctx context.Context, userID string) context.Context {
-	return context.WithValue(ctx, "user_id", userID)
+	return context.WithValue(ctx, userIDKey, userID)
 }
 
 func contextWithUserEmail(ctx context.Context, email string) context.Context {
-	return context.WithValue(ctx, "user_email", email)
+	return context.WithValue(ctx, userEmailKey, email)
 }
 
 func contextWithUserName(ctx context.Context, name string) context.Context {
-	return context.WithValue(ctx, "user_name", name)
+	return context.WithValue(ctx, userNameKey, name)
 }
 
-// Helper functions to get user info from context
 func GetUserID(ctx context.Context) string {
-	if userID, ok := ctx.Value("user_id").(string); ok {
+	if userID, ok := ctx.Value(userIDKey).(string); ok {
 		return userID
 	}
 	return ""
 }
 
 func GetUserEmail(ctx context.Context) string {
-	if email, ok := ctx.Value("user_email").(string); ok {
+	if email, ok := ctx.Value(userEmailKey).(string); ok {
 		return email
 	}
 	return ""
 }
 
 func GetUserName(ctx context.Context) string {
-	if name, ok := ctx.Value("user_name").(string); ok {
+	if name, ok := ctx.Value(userNameKey).(string); ok {
 		return name
 	}
 	return ""
 }
 
 func getJWTSecret() string {
-	// In production, use environment variable
-	// For now, return a default secret
 	return "your-secret-key"
 }

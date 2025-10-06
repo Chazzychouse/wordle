@@ -10,6 +10,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	oauth2api "google.golang.org/api/oauth2/v2"
+	"google.golang.org/api/option"
 )
 
 type AuthHandler struct {
@@ -95,7 +96,7 @@ func (ah *AuthHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	// Get user info from Google
 	client := ah.config.Client(r.Context(), token)
-	oauth2Service, err := oauth2api.New(client)
+	oauth2Service, err := oauth2api.NewService(r.Context(), option.WithHTTPClient(client))
 	if err != nil {
 		http.Error(w, "Failed to create OAuth2 service", http.StatusInternalServerError)
 		return

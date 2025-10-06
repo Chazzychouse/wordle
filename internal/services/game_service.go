@@ -27,18 +27,27 @@ func (gs *GameService) CreateGame(userEmail string) (*game.Game, error) {
 		return nil, errors.New("failed to get random word")
 	}
 
+	newID := uuid.New().String()
+
 	newGame := &game.Game{
-		ID:         uuid.New().String(),
+		ID:         newID,
 		Username:   userEmail,
-		Solution:   word.Word,
 		IsGameOver: false,
 		Attempts:   []game.Attempt{},
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
 
+	newSolution := &game.Solution{
+		GameID: newID,
+		Value:  word.Word,
+	}
+
 	if err := gs.db.CreateGame(newGame); err != nil {
 		return nil, errors.New("failed to create game")
+	}
+	if err := gs.db.CreateSolution(newSolution); err != nil {
+		return nil, errors.New("failed to create solution")
 	}
 
 	return newGame, nil
@@ -54,10 +63,6 @@ func (gs *GameService) GetGame(gameID, userEmail string) (*game.Game, error) {
 		return nil, errors.New("access denied")
 	}
 
-	if !game.IsGameOver {
-		game.Solution = "*****"
-	}
-
 	return game, nil
 }
 
@@ -67,13 +72,18 @@ func (gs *GameService) MakeAttempt(gameID, userEmail, guess string) (*game.Attem
 		return nil, err
 	}
 
+	existingSolution, err := gs.db.GetSolution(gameID)
+	if err != nil {
+		return nil, errors.New("solution not found")
+	}
+
 	attemptRequest := game.AttemptRequest{
 		GameID:   gameID,
 		Username: userEmail,
 		Value:    guess,
 	}
 
-	response, err := game.ValidateAttempt(attemptRequest, existingGame)
+	response, err := game.ValidateAttempt(attemptRequest, existingGame, existingSolution)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +95,6 @@ func (gs *GameService) MakeAttempt(gameID, userEmail, guess string) (*game.Attem
 	existingGame.IsGameOver = response.IsGameOver
 	existingGame.UpdatedAt = time.Now()
 
-	// Save updated game
 	if err := gs.db.UpdateGame(existingGame); err != nil {
 		return nil, errors.New("failed to update game")
 	}
@@ -93,7 +102,6 @@ func (gs *GameService) MakeAttempt(gameID, userEmail, guess string) (*game.Attem
 	return &response, nil
 }
 
-// GetUserGames retrieves all games for a user
 func (gs *GameService) GetUserGames(userEmail string) ([]game.Game, error) {
 	return gs.db.GetGamesByUsername(userEmail)
 }

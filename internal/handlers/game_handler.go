@@ -112,7 +112,7 @@ func (gh *GameHandler) GetUserGames(w http.ResponseWriter, r *http.Request) {
 	// 	return
 	// }
 
-	userEmail := r.URL.Query().Get("email")
+	userEmail := mux.Vars(r)["email"]
 	if userEmail == "" {
 		http.Error(w, "User email is required", http.StatusBadRequest)
 		return
