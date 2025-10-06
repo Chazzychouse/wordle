@@ -10,7 +10,7 @@ import (
 
 func main() {
 	r := mux.NewRouter()
-
+	r.Use(middleware.CORSMiddleware)
 	gameHandler := handlers.NewGameHandler()
 	authHandler := handlers.NewAuthHandler()
 
